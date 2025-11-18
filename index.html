@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pose Detection - AI Model</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8.6/dist/teachablemachine-pose.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🎯 Pose Detection Model</h1>
+        <p class="subtitle">Phát hiện tư thế trong thời gian thực</p>
+      </header>
+
+      <div class="main-content">
+        <div class="video-section">
+          <div class="video-wrapper">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+            <div class="video-overlay">
+              <div class="status" id="status">Đang khởi tạo...</div>
+            </div>
+          </div>
+          <div class="controls">
+            <button id="startBtn" class="btn btn-primary">Bắt đầu</button>
+            <button id="stopBtn" class="btn btn-secondary" disabled>
+              Dừng
+            </button>
+          </div>
+        </div>
+
+        <div class="predictions-section">
+          <h2>Kết quả dự đoán</h2>
+          <div class="predictions-container" id="predictions">
+            <!-- Predictions will be dynamically added here -->
+          </div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-card">
+          <h3>📊 Thông tin Model</h3>
+          <p><strong>Loại:</strong> Pose Detection</p>
+          <p><strong>Kiến trúc:</strong> MobileNetV1</p>
+          <p><strong>Số lớp:</strong> 3</p>
+        </div>
+      </div>
+    </div>
+
+    <script src="main.js"></script>
+  </body>
+</html>
