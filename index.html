@@ -1,78 +1,390 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teachable Machine - Pose Model (FIL)</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Monitor AI - Full Version</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- QUAN TRỌNG: Liên kết file CSS -->
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body id="main-body" class="min-h-screen text-slate-800 bg-slate-100">
+    <!-- ==================== SCREEN 1: HOME ==================== -->
+    <div
+      id="screen-home"
+      class="screen active min-h-screen flex-col items-center justify-center p-4"
+    >
+      <div
+        class="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center"
+      >
+        <div
+          class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600 text-3xl"
+        >
+          <i class="fas fa-graduation-cap"></i>
+        </div>
+        <h1 class="text-2xl font-bold mb-2">Study Monitor AI</h1>
+        <p class="text-slate-500 mb-8">Chọn chế độ học tập của bạn</p>
 
-    <div class="w-full max-w-4xl mb-4 flex justify-between items-end">
+        <div class="space-y-3">
+          <button
+            onclick="app.startNormalMode()"
+            class="w-full py-4 bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-bold rounded-xl transition flex items-center justify-center gap-3"
+          >
+            <i class="fas fa-infinity"></i> Normal Mode
+          </button>
+          <button
+            onclick="app.goToSetup()"
+            class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition transform active:scale-95 flex items-center justify-center gap-3"
+          >
+            <i class="fas fa-clock"></i> Pomodoro Mode
+          </button>
+        </div>
+        <p class="text-xs text-slate-400 mt-8">ELC_2008_2 Group 8</p>
+      </div>
+    </div>
+
+    <!-- ==================== SCREEN 1.5: POMODORO SETUP ==================== -->
+    <div
+      id="screen-setup"
+      class="screen min-h-screen flex-col items-center justify-center p-4"
+    >
+      <div class="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full">
+        <button
+          onclick="app.switchScreen('home')"
+          class="text-slate-400 hover:text-slate-600 mb-4"
+        >
+          <i class="fas fa-arrow-left"></i> Quay lại
+        </button>
+        <h2 class="text-2xl font-bold text-slate-800 mb-6">
+          Thiết lập Pomodoro
+        </h2>
+
+        <div class="space-y-5">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2"
+              >Thời gian học (Phút)</label
+            >
+            <input
+              type="number"
+              id="input-focus-time"
+              value="25"
+              min="1"
+              class="setup-input text-center text-xl"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2"
+              >Thời gian nghỉ (Phút)</label
+            >
+            <input
+              type="number"
+              id="input-break-time"
+              value="5"
+              min="1"
+              class="setup-input text-center text-xl"
+            />
+          </div>
+
+          <div class="pt-4">
+            <button
+              onclick="app.startPomodoroMode()"
+              class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition transform active:scale-95 flex items-center justify-center gap-2"
+            >
+              <i class="fas fa-play"></i> Bắt đầu Session 1
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SCREEN 2: STUDY (SHARED UI) ==================== -->
+    <div id="screen-study" class="screen min-h-screen flex-col p-4 md:p-6">
+      <!-- Popup Cảnh báo -->
+      <div id="warning-popup" class="warning-popup text-red-600">
+        <i class="fas fa-exclamation-triangle text-2xl"></i>
+        <span id="warning-text" class="font-bold text-lg">Cảnh báo!</span>
+      </div>
+
+      <!-- Header -->
+      <div
+        class="flex justify-between items-center mb-6 bg-white/90 backdrop-blur p-4 rounded-2xl shadow-sm w-full max-w-6xl mx-auto"
+      >
         <div>
-            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <i class="fas fa-running text-violet-600"></i> 
-                FIL Pose Model
-            </h1>
-            <p class="text-slate-500 text-xs mt-1 font-mono">Type: Pose Detection | ID: meZmCHgZF</p>
+          <div class="flex items-center gap-3">
+            <span
+              id="mode-badge"
+              class="px-2 py-1 rounded text-xs font-bold bg-slate-100 text-slate-500"
+              >NORMAL</span
+            >
+            <h2 id="session-title" class="font-bold text-lg text-slate-800">
+              Đang học...
+            </h2>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-500 mt-1">
+            <span
+              class="w-2 h-2 bg-green-500 rounded-full animate-pulse"
+            ></span>
+            <span
+              id="main-timer"
+              class="font-mono font-bold text-2xl text-slate-700"
+              >00:00:00</span
+            >
+          </div>
         </div>
-        <div class="bg-white border px-3 py-1 rounded shadow-sm">
-            <span class="text-[10px] text-slate-400 uppercase font-bold">Status</span>
-            <span id="status-text" class="text-xs font-bold text-orange-500">Idle</span>
+        <button
+          onclick="app.endSessionConfirm()"
+          class="px-5 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-bold transition border border-red-200"
+        >
+          <i class="fas fa-stop mr-1"></i> Kết thúc
+        </button>
+      </div>
+
+      <!-- Main Layout -->
+      <div
+        class="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full max-w-6xl mx-auto flex-1"
+      >
+        <!-- Left: Camera -->
+        <div class="lg:col-span-2 flex flex-col">
+          <div class="camera-wrapper relative shadow-2xl">
+            <canvas
+              id="canvas"
+              class="block w-full h-full object-cover"
+            ></canvas>
+            <div
+              id="loader"
+              class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-20"
+            >
+              <div class="loader mb-4"></div>
+              <p class="text-slate-400 text-sm font-medium">
+                Đang khởi tạo AI...
+              </p>
+            </div>
+
+            <!-- Overlay cho Break Mode -->
+            <div
+              id="break-overlay"
+              class="hidden absolute inset-0 bg-slate-900/70 z-10 flex-col items-center justify-center text-white"
+            >
+              <i class="fas fa-coffee text-4xl mb-2 text-emerald-400"></i>
+              <p class="font-bold text-xl">Giờ nghỉ giải lao</p>
+              <p class="text-sm opacity-80">Thả lỏng cơ thể nào!</p>
+            </div>
+          </div>
+          <div class="mt-3 text-center">
+            <p
+              id="cam-status-text"
+              class="text-white/80 text-sm italic bg-black/20 inline-block px-3 py-1 rounded-full backdrop-blur-sm"
+            >
+              <i class="fas fa-video mr-2"></i> Camera đang hoạt động
+            </p>
+          </div>
         </div>
+
+        <!-- Right: Stats -->
+        <div class="lg:col-span-1 flex flex-col gap-4">
+          <div
+            class="bg-white/95 backdrop-blur p-6 rounded-2xl shadow-lg border border-slate-100"
+          >
+            <h3
+              class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2"
+            >
+              Trạng thái AI
+            </h3>
+            <div
+              id="status-display"
+              class="text-3xl font-bold text-slate-800 mb-1"
+            >
+              ---
+            </div>
+            <div id="status-sub" class="text-sm text-slate-500">---</div>
+          </div>
+
+          <div
+            class="bg-white/95 backdrop-blur p-6 rounded-2xl shadow-lg border border-slate-100 flex-1"
+          >
+            <h3
+              class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4"
+            >
+              Chỉ số thời gian thực
+            </h3>
+
+            <!-- Bars -->
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm font-bold mb-1">
+                  <span class="text-emerald-600">Tập trung</span
+                  ><span id="score-focus">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div
+                    id="bar-focus"
+                    class="progress-bar-fill bg-emerald-500"
+                    style="width: 0%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm font-bold mb-1">
+                  <span class="text-yellow-600">Mất tập trung</span
+                  ><span id="score-distract">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div
+                    id="bar-distract"
+                    class="progress-bar-fill bg-yellow-500"
+                    style="width: 0%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm font-bold mb-1">
+                  <span class="text-red-600">Vắng mặt</span
+                  ><span id="score-absent">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div
+                    id="bar-absent"
+                    class="progress-bar-fill bg-red-500"
+                    style="width: 0%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              id="pomodoro-stats"
+              class="hidden mt-8 pt-4 border-t border-slate-100"
+            >
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-bold text-slate-500">Session:</span>
+                <span
+                  id="pomo-session-count"
+                  class="text-xl font-bold text-indigo-600"
+                  >0</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-xl overflow-hidden w-full max-w-4xl flex flex-col md:flex-row border border-slate-200">
-        
-        <!-- Camera Area -->
-        <div class="w-full md:w-1/2 p-5 bg-slate-50 flex flex-col items-center justify-center relative min-h-[350px] border-r border-slate-200">
-            
-            <div id="camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 z-10">
-                <div class="bg-white p-4 rounded-full shadow-sm mb-3">
-                    <i class="fas fa-video text-2xl text-slate-300"></i>
-                </div>
-                <p class="text-sm font-medium">Chờ camera Pose...</p>
-            </div>
+    <!-- ==================== SCREEN 3: SUMMARY ==================== -->
+    <div
+      id="screen-summary"
+      class="screen min-h-screen flex-col items-center p-6 bg-slate-50"
+    >
+      <div class="w-full max-w-4xl">
+        <h2 class="text-3xl font-bold text-slate-800 mb-2 text-center">
+          Tổng kết buổi học
+        </h2>
+        <p id="summary-subtitle" class="text-center text-slate-500 mb-8">---</p>
 
-            <div id="loader" class="hidden absolute z-20 flex flex-col items-center bg-white/90 px-8 py-6 rounded-xl shadow-lg backdrop-blur-sm">
-                <div class="loader mb-3"></div>
-                <span class="text-xs font-bold text-slate-600">Đang tải PoseNet...</span>
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div
+            class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center"
+          >
+            <div class="text-xs text-slate-500 uppercase mb-1">
+              Tổng thời gian học
             </div>
-
-            <div id="canvas-wrapper" class="canvas-wrapper hidden">
-                <canvas id="canvas" class="canvas-layer"></canvas>
+            <div id="sum-time" class="text-xl font-bold text-indigo-600">
+              00:00
             </div>
-            
-            <div class="z-30 mt-6 w-full max-w-[200px]">
-                <button id="start-btn" class="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-lg shadow transition active:scale-95 flex justify-center items-center gap-2">
-                    <i class="fas fa-play"></i> Bắt đầu
-                </button>
+          </div>
+          <div
+            class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center"
+          >
+            <div class="text-xs text-slate-500 uppercase mb-1">
+              Thời gian nghỉ
             </div>
+            <div id="sum-break" class="text-xl font-bold text-slate-500">
+              00:00
+            </div>
+          </div>
+          <div
+            class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center"
+          >
+            <div class="text-xs text-slate-500 uppercase mb-1">Tập trung</div>
+            <div id="sum-focus" class="text-xl font-bold text-emerald-600">
+              0%
+            </div>
+          </div>
+          <div
+            class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center"
+          >
+            <div class="text-xs text-slate-500 uppercase mb-1">Số Pomodoro</div>
+            <div id="sum-pomodoros" class="text-xl font-bold text-purple-600">
+              0
+            </div>
+          </div>
+          <div
+            class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center"
+          >
+            <div class="text-xs text-slate-500 uppercase mb-1">Số cảnh báo</div>
+            <div id="sum-warnings" class="text-xl font-bold text-red-500">
+              0
+            </div>
+          </div>
         </div>
 
-        <!-- Results Area -->
-        <div class="w-full md:w-1/2 p-6 flex flex-col bg-white">
-            <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wide mb-4 border-b pb-2">Kết quả Tư thế</h2>
-            <div id="label-container" class="flex-1 space-y-4 overflow-y-auto pr-1">
-                <div class="animate-pulse space-y-3 opacity-40">
-                    <div class="h-8 bg-slate-100 rounded"></div>
-                    <div class="h-8 bg-slate-100 rounded"></div>
-                    <div class="h-8 bg-slate-100 rounded"></div>
-                </div>
+        <!-- Chart & Logs -->
+        <div class="flex flex-col md:flex-row gap-6">
+          <div
+            class="w-full md:w-1/3 bg-white p-6 rounded-2xl shadow-sm border border-slate-100"
+          >
+            <h3 class="font-bold text-slate-700 mb-4">Biểu đồ phân bố</h3>
+            <canvas id="summaryChart"></canvas>
+          </div>
+          <div
+            class="w-full md:w-2/3 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col"
+          >
+            <div
+              class="px-6 py-4 border-b border-slate-100 font-bold text-slate-700"
+            >
+              Nhật ký chi tiết
             </div>
+            <div class="flex-1 overflow-y-auto max-h-64">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-slate-500 sticky top-0">
+                  <tr>
+                    <th class="px-4 py-2">Thời gian</th>
+                    <th class="px-4 py-2">Chế độ</th>
+                    <th class="px-4 py-2">Trạng thái</th>
+                    <th class="px-4 py-2">Ghi chú</th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="log-table-body"
+                  class="divide-y divide-slate-100"
+                ></tbody>
+              </table>
+            </div>
+          </div>
         </div>
+
+        <div class="mt-8 text-center">
+          <button
+            onclick="window.location.reload()"
+            class="px-8 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow transition"
+          >
+            <i class="fas fa-redo mr-2"></i> Bắt đầu buổi mới
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Thư viện AI -->
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
-    
-    <!-- QUAN TRỌNG: Liên kết file JS -->
     <script src="main.js"></script>
-</body>
+  </body>
 </html>
