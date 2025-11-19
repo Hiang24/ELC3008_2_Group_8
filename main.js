@@ -1,308 +1,123 @@
-// Model configuration
-const modelURL = "./model/model.json";
-const metadataURL = "./model/metadata.json";
-
-// Global variables
-let model, webcam, ctx, canvas, maxPredictions;
+const URL = "https://teachablemachine.withgoogle.com/models/meZmCHgZF/";
+let model, webcam, ctx, labelContainer, maxPredictions;
 let isRunning = false;
-let animationId = null;
 
-// DOM elements
-const startBtn = document.getElementById("startBtn");
-const stopBtn = document.getElementById("stopBtn");
-const statusEl = document.getElementById("status");
-const predictionsEl = document.getElementById("predictions");
-const videoEl = document.getElementById("webcam");
-const canvasEl = document.getElementById("canvas");
+// Các Element giao diện
+const statusText = document.getElementById('status-text');
+const startBtn = document.getElementById('start-btn');
+const loader = document.getElementById('loader');
+const placeholder = document.getElementById('camera-placeholder');
+const canvasWrapper = document.getElementById('canvas-wrapper');
 
-// Initialize
+// Lắng nghe sự kiện nút bấm
+startBtn.addEventListener('click', init);
+
 async function init() {
-  try {
-    statusEl.textContent = "Đang tải model...";
-    statusEl.classList.add("loading");
+    startBtn.classList.add('hidden');
+    loader.classList.remove('hidden');
+    statusText.innerText = "Loading...";
 
-    // Load the model and metadata
-    model = await tmPose.load(modelURL, metadataURL);
-    maxPredictions = model.getTotalClasses();
+    try {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
 
-    // Create prediction items in UI
-    createPredictionItems();
+        // 1. Load Model
+        model = await tmPose.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
 
-    statusEl.textContent = "Sẵn sàng";
-    statusEl.classList.remove("loading");
-    startBtn.disabled = false;
+        // 2. Setup Webcam
+        const size = 200;
+        const flip = true; 
+        webcam = new tmPose.Webcam(size, size, flip); 
+        await webcam.setup(); 
+        await webcam.play();
+        
+        // 3. Setup Canvas
+        canvasWrapper.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        loader.classList.add('hidden');
+        
+        const canvas = document.getElementById("canvas");
+        canvas.width = size; 
+        canvas.height = size;
+        ctx = canvas.getContext("2d");
+        
+        setupLabels();
+        statusText.innerText = "Active";
+        statusText.className = "text-xs font-bold text-green-500";
 
-    console.log("Model loaded successfully");
-  } catch (error) {
-    console.error("Error loading model:", error);
-    statusEl.textContent = "Lỗi khi tải model: " + error.message;
-    statusEl.style.background = "rgba(220, 53, 69, 0.8)";
-  }
+        isRunning = true;
+        window.requestAnimationFrame(loop);
+
+    } catch (e) {
+        console.error(e);
+        loader.classList.add('hidden');
+        startBtn.classList.remove('hidden');
+        alert("Lỗi: " + e.message);
+    }
 }
 
-// Create prediction items in the UI
-function createPredictionItems() {
-  const labels = model.getClassLabels();
-  predictionsEl.innerHTML = "";
+function setupLabels() {
+    labelContainer = document.getElementById("label-container");
+    labelContainer.innerHTML = '';
+    const classLabels = model.getClassLabels();
 
-  labels.forEach((label, index) => {
-    const item = document.createElement("div");
-    item.className = "prediction-item";
-    item.id = `prediction-${index}`;
-    item.innerHTML = `
-            <div class="prediction-header">
-                <span class="prediction-label">${label}</span>
-                <span class="prediction-percentage">0%</span>
+    for (let i = 0; i < maxPredictions; i++) {
+        const name = classLabels[i] || `Pose ${i + 1}`;
+        const div = document.createElement("div");
+        div.className = "mb-2";
+        div.innerHTML = `
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-xs font-bold text-slate-600 uppercase tracking-tight">${name}</span>
+                <span class="text-xs font-mono text-violet-600 font-bold class-score-${i}">0%</span>
             </div>
-            <div class="progress-bar-container">
-                <div class="progress-bar" style="width: 0%">0%</div>
+            <div class="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-violet-500 class-bar-${i}" style="width: 0%"></div>
             </div>
         `;
-    predictionsEl.appendChild(item);
-  });
-}
-
-// Update prediction UI
-function updatePredictionUI(predictions) {
-  predictions.forEach((prediction, index) => {
-    const item = document.getElementById(`prediction-${index}`);
-    const percentageEl = item.querySelector(".prediction-percentage");
-    const progressBar = item.querySelector(".progress-bar");
-    const percentage = Math.round(prediction.probability * 100);
-
-    percentageEl.textContent = `${percentage}%`;
-    progressBar.style.width = `${percentage}%`;
-    progressBar.textContent = `${percentage}%`;
-
-    // Highlight the highest prediction
-    if (percentage > 50) {
-      item.classList.add("active");
-    } else {
-      item.classList.remove("active");
+        labelContainer.appendChild(div);
     }
-  });
-
-  // Find and highlight the top prediction
-  const sortedPredictions = [...predictions].sort(
-    (a, b) => b.probability - a.probability
-  );
-  const topPrediction = sortedPredictions[0];
-  const topIndex = predictions.indexOf(topPrediction);
-
-  // Remove active class from all items
-  document.querySelectorAll(".prediction-item").forEach((item) => {
-    item.classList.remove("active");
-  });
-
-  // Add active class to top prediction
-  if (topPrediction.probability > 0.1) {
-    const topItem = document.getElementById(`prediction-${topIndex}`);
-    topItem.classList.add("active");
-  }
 }
 
-// Start webcam and prediction loop
-async function start() {
-  try {
-    statusEl.textContent = "Đang khởi động camera...";
-    statusEl.classList.add("loading");
-
-    // Setup webcam using tmPose.Webcam
-    const flip = true; // whether to flip the webcam
-    webcam = new tmPose.Webcam(640, 480, flip);
-    await webcam.setup();
-    await webcam.play();
-
-    // Setup canvas for drawing pose overlay
-    canvas = canvasEl;
-    canvas.width = 640;
-    canvas.height = 480;
-    ctx = canvas.getContext("2d");
-
-    // Connect webcam canvas stream to video element for display
-    if (webcam.canvas) {
-      try {
-        const stream = webcam.canvas.captureStream(30);
-        videoEl.srcObject = stream;
-        videoEl.play().catch((err) => {
-          console.error("Video play error:", err);
-        });
-      } catch (err) {
-        console.error("Stream capture error:", err);
-        // Fallback: hide video and show canvas only
-        videoEl.style.display = "none";
-      }
-    }
-
-    isRunning = true;
-    startBtn.disabled = true;
-    stopBtn.disabled = false;
-    statusEl.textContent = "Đang chạy";
-    statusEl.classList.remove("loading");
-    statusEl.style.background = "rgba(40, 167, 69, 0.8)";
-
-    // Start prediction loop
-    loop();
-
-    console.log("Webcam started");
-  } catch (error) {
-    console.error("Error starting webcam:", error);
-    statusEl.textContent = "Lỗi camera: " + error.message;
-    statusEl.style.background = "rgba(220, 53, 69, 0.8)";
-    isRunning = false;
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
-  }
-}
-
-// Stop webcam
-function stop() {
-  if (webcam) {
-    webcam.stop();
-  }
-  if (animationId) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
-
-  // Stop video stream
-  if (videoEl.srcObject) {
-    const tracks = videoEl.srcObject.getTracks();
-    tracks.forEach((track) => track.stop());
-    videoEl.srcObject = null;
-  }
-
-  isRunning = false;
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-  statusEl.textContent = "Đã dừng";
-  statusEl.style.background = "rgba(0, 0, 0, 0.7)";
-
-  // Clear canvas
-  if (ctx && canvas) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
-  // Reset predictions
-  document.querySelectorAll(".prediction-item").forEach((item) => {
-    item.classList.remove("active");
-    const percentageEl = item.querySelector(".prediction-percentage");
-    const progressBar = item.querySelector(".progress-bar");
-    percentageEl.textContent = "0%";
-    progressBar.style.width = "0%";
-    progressBar.textContent = "0%";
-  });
-}
-
-// Main prediction loop
 async function loop() {
-  if (!isRunning) return;
-
-  webcam.update(); // update the webcam frame
-  await predict();
-  animationId = window.requestAnimationFrame(loop);
+    if (!isRunning) return;
+    webcam.update(); 
+    await predict();
+    window.requestAnimationFrame(loop);
 }
 
-// Run prediction
 async function predict() {
-  if (!model || !webcam || !webcam.canvas) {
-    console.warn("Model or webcam not ready");
-    return;
-  }
-
-  try {
-    // Prediction #1: run input through posenet
     const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
-
-    // Prediction #2: run input through teachable machine classification model
     const prediction = await model.predict(posenetOutput);
 
-    // Draw pose keypoints and skeleton
     drawPose(pose);
 
-    // Update UI with predictions
-    updatePredictionUI(prediction);
-  } catch (error) {
-    console.error("Prediction error:", error);
-  }
+    for (let i = 0; i < maxPredictions; i++) {
+        const probability = prediction[i].probability;
+        const percentage = (probability * 100).toFixed(0) + "%";
+        
+        const scoreEl = document.querySelector(`.class-score-${i}`);
+        const barEl = document.querySelector(`.class-bar-${i}`);
+
+        if (scoreEl) scoreEl.innerText = percentage;
+        if (barEl) {
+            barEl.style.width = percentage;
+            if (probability > 0.8) {
+                barEl.className = `h-full rounded-full bg-green-500 class-bar-${i}`; 
+            } else {
+                barEl.className = `h-full rounded-full bg-violet-500 class-bar-${i}`;
+            }
+        }
+    }
 }
 
-// Draw pose keypoints and skeleton
 function drawPose(pose) {
-  if (!ctx || !canvas || !pose) return;
-
-  ctx.save();
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw the webcam video frame first (from webcam canvas which has the video)
-  if (webcam && webcam.canvas) {
-    try {
-      ctx.drawImage(webcam.canvas, 0, 0, canvas.width, canvas.height);
-    } catch (err) {
-      console.error("Error drawing webcam canvas:", err);
+    if (webcam.canvas) {
+        ctx.drawImage(webcam.canvas, 0, 0);
+        if (pose) {
+            const minPartConfidence = 0.5;
+            tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
+            tmPose.drawSkeleton(pose.keypoints, minPartConfidence, ctx);
+        }
     }
-  }
-
-  // Draw keypoints
-  if (pose.keypoints) {
-    for (let i = 0; i < pose.keypoints.length; i++) {
-      const keypoint = pose.keypoints[i];
-      if (keypoint.score > 0.5) {
-        ctx.beginPath();
-        ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
-        ctx.fillStyle = "#00f2fe";
-        ctx.fill();
-      }
-    }
-  }
-
-  // Draw skeleton
-  if (pose.keypoints) {
-    const adjacentKeyPoints = [
-      ["nose", "leftEye"],
-      ["nose", "rightEye"],
-      ["leftEye", "leftEar"],
-      ["rightEye", "rightEar"],
-      ["leftShoulder", "rightShoulder"],
-      ["leftShoulder", "leftElbow"],
-      ["leftElbow", "leftWrist"],
-      ["rightShoulder", "rightElbow"],
-      ["rightElbow", "rightWrist"],
-      ["leftShoulder", "leftHip"],
-      ["rightShoulder", "rightHip"],
-      ["leftHip", "rightHip"],
-      ["leftHip", "leftKnee"],
-      ["leftKnee", "leftAnkle"],
-      ["rightHip", "rightKnee"],
-      ["rightKnee", "rightAnkle"],
-    ];
-
-    adjacentKeyPoints.forEach(([first, second]) => {
-      const firstPoint = pose.keypoints.find((kp) => kp.name === first);
-      const secondPoint = pose.keypoints.find((kp) => kp.name === second);
-
-      if (
-        firstPoint &&
-        secondPoint &&
-        firstPoint.score > 0.5 &&
-        secondPoint.score > 0.5
-      ) {
-        ctx.beginPath();
-        ctx.moveTo(firstPoint.x, firstPoint.y);
-        ctx.lineTo(secondPoint.x, secondPoint.y);
-        ctx.strokeStyle = "#4facfe";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-    });
-  }
-
-  ctx.restore();
 }
-
-// Event listeners
-startBtn.addEventListener("click", start);
-stopBtn.addEventListener("click", stop);
-
-// Initialize on page load
-init();
